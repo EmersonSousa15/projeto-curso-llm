@@ -3,38 +3,53 @@ import os
 import time
 from dotenv import load_dotenv
 
-load_dotenv()
+# Classe que fornecerá todos os dados, por meio da comunicação com a api do Gemini
+class Gemini:
 
-chave = os.getenv("API_KEY")
+    # Estrutura do objeto dos dados que será retornado para serem renderizados
+    def __init__(self, prompt:str="", modelo:str="models/gemini-1.5-pro-latest", temperatura:float=0.8, top_k:int=20, top_p:float=0.8):
+        self.prompt = prompt
+        self.modelo = modelo
+        self.temperatura = temperatura
+        self.top_k = top_k
+        self.top_p = top_p
 
-genai.configure(api_key=chave)
+    # Retorna a instância conigurada com minha chave de API do Gemini
+    def config_gemeni(self):
+        load_dotenv()
+        chave = os.getenv("API_KEY")
+        if chave is None:
+            raise Exception("Chave de API não encontrada")
+        genai.configure(
+            api_key = chave
+        )
 
-modelos = [m.name for m in genai.list_models()]
+        return genai
+    
+    # Realiza a requisição na API do Gemini enviando os parâmentros captados na interface e retorna a resposta gerada e os
+    # outros dados que serão gerados
+    def geracao_resposta(self) -> tuple[str, int, int, int]: 
+        model = self.config_gemeni()
+        inicio = time.time()
+        gemini = model.GenerativeModel(
+            model_name=self.modelo,
+            generation_config={
+                "temperature": self.temperatura,
+                "top_k": self.top_k,
+                "top_p": self.top_p
+            }
+        )
+        response = gemini.generate_content(self.prompt)
+        tokens_pergunta = str(gemini.count_tokens(self.prompt))
+        qtd_tokens_perguntas = int(tokens_pergunta.split(" ")[1])
 
-print("Modelos: ")
-for modelo in enumerate(modelos):
-    print(f"{modelo[0]} - {modelo[1]}")
+        tokens_resposta = str(gemini.count_tokens(response.text))
+        qtd_tokens_resposta = int(tokens_resposta.split(" ")[1])
 
-selecione_modelo = int(input("Selecione o modelo: "))
-modelo = modelos[selecione_modelo]
+        fim = time.time()
+        tempo = fim - inicio
+
+        return response.text, qtd_tokens_perguntas, qtd_tokens_resposta, tempo
 
 
-model = genai.GenerativeModel(modelo)
-inicio = time.time()
 
-pergunta = "Fale sobre a importância da educação para a sociedade."
-
-response = model.generate_content(pergunta)
-
-tokens_pergunta = str(model.count_tokens(pergunta))
-qtd_tokens_perguntas = int(tokens_pergunta.split(" ")[1])
-
-tokens_resposta = str(model.count_tokens(response.text))
-qtd_tokens_resposta = int(tokens_resposta.split(" ")[1])
-
-fim = time.time()
-print(response.text)
-print(f"Tempo de resposta: {fim - inicio} segundos")
-
-print(f"Tokens pergunta: {qtd_tokens_perguntas}")
-print(f"Tokens resposta: {qtd_tokens_resposta}")
